@@ -74,7 +74,6 @@ export class HighloadWalletV3 implements Contract {
             query_id: bigint | HighloadQueryId,
             createdAt: number,
             subwalletId: number,
-            timeout: number,
         }
     ) {
         let messageCell: Cell;
@@ -95,7 +94,6 @@ export class HighloadWalletV3 implements Contract {
             .storeUint(opts.mode, 8)
             .storeUint(queryId, 23)
             .storeUint(opts.createdAt, TIMESTAMP_SIZE)
-            .storeUint(opts.timeout, TIMEOUT_SIZE)
             .endCell();
 
         await provider.external(
@@ -106,7 +104,7 @@ export class HighloadWalletV3 implements Contract {
         );
     }
 
-    async sendBatch(provider: ContractProvider, secretKey: Buffer, messages: OutActionSendMsg[], subwallet: number, query_id: HighloadQueryId, timeout: number, createdAt?: number, value: bigint = 0n) {
+    async sendBatch(provider: ContractProvider, secretKey: Buffer, messages: OutActionSendMsg[], subwallet: number, query_id: HighloadQueryId, createdAt?: number, value: bigint = 0n) {
         if (createdAt == undefined) {
             createdAt = Math.floor(Date.now() / 1000);
         }
@@ -116,7 +114,6 @@ export class HighloadWalletV3 implements Contract {
             query_id: query_id,
             createdAt: createdAt,
             subwalletId: subwallet,
-            timeout: timeout
         });
     }
 
@@ -182,7 +179,6 @@ export class HighloadWalletV3 implements Contract {
             value
         });
     }
-
 
     async getPublicKey(provider: ContractProvider): Promise<Buffer> {
         const res = (await provider.get('get_public_key', [])).stack;

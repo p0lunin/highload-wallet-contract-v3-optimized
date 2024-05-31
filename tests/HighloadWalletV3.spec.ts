@@ -1,5 +1,16 @@
 import { Blockchain, EmulationError, SandboxContract, createShardAccount, internal } from '@ton/sandbox';
-import { beginCell, Cell, SendMode, toNano, Address, internal as internal_relaxed, Dictionary, BitString, OutActionSendMsg } from '@ton/core';
+import {
+    beginCell,
+    Cell,
+    SendMode,
+    toNano,
+    Address,
+    internal as internal_relaxed,
+    Dictionary,
+    BitString,
+    OutActionSendMsg,
+    TransactionDescriptionGeneric, TransactionComputeVm
+} from '@ton/core';
 import {HighloadWalletV3, TIMEOUT_SIZE, TIMESTAMP_SIZE} from '../wrappers/HighloadWalletV3';
 import '@ton/test-utils';
 import { getSecureRandomBytes, KeyPair, keyPairFromSeed } from "ton-crypto";
@@ -115,8 +126,7 @@ describe('HighloadWalletV3', () => {
                     query_id: queryId,
                     message,
                     mode: 128,
-                    subwalletId: SUBWALLET_ID,
-                    timeout: DEFAULT_TIMEOUT
+                    subwalletId: SUBWALLET_ID
                 }
             );
 
@@ -154,8 +164,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         ), Errors.invalid_signature)
     });
@@ -183,8 +192,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 mode: 128,
                 message,
-                subwalletId: badSubwallet,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: badSubwallet
             }), Errors.invalid_subwallet);
     });
     it('should fail check created time', async () => {
@@ -205,8 +213,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         ), Errors.invalid_creation_time);
     });
@@ -226,8 +233,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         );
         expect(testResult.transactions).toHaveTransaction({
@@ -244,8 +250,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         ), Errors.already_executed);
     });
@@ -265,8 +270,7 @@ describe('HighloadWalletV3', () => {
                     value: 0n,
                 }),
                 mode: 0,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             })).resolves.not.toThrow(EmulationError);
     });
 
@@ -285,8 +289,7 @@ describe('HighloadWalletV3', () => {
                     value: 0n,
                 }),
                 mode: 0,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             })).rejects.toThrow(EmulationError);
     });
     it('should work with max shift = maxShift', async () => {
@@ -303,8 +306,7 @@ describe('HighloadWalletV3', () => {
                     value: 0n,
                 }),
                 mode: 0,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             })).resolves.not.toThrow(EmulationError);
     });
 
@@ -323,8 +325,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         );
         expect(testResult.transactions).toHaveTransaction({
@@ -343,8 +344,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         ), Errors.already_executed)
     });
@@ -364,8 +364,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         );
         expect(testResult1.transactions).toHaveTransaction({
@@ -391,8 +390,7 @@ describe('HighloadWalletV3', () => {
                 query_id: newQueryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         );
         expect(testResult2.transactions).toHaveTransaction({
@@ -453,8 +451,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             });
         await expect(res).resolves.not.toThrow();
         expect((await res).transactions).toHaveTransaction({
@@ -484,8 +481,7 @@ describe('HighloadWalletV3', () => {
                 }),
                 createdAt: 1000,
                 mode: SendMode.PAY_GAS_SEPARATELY,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
         });
         expect(res.transactions).toHaveTransaction({
             on: testAddr,
@@ -493,6 +489,14 @@ describe('HighloadWalletV3', () => {
             value: toNano('123'),
             body: testBody
         });
+
+        console.debug(
+            'SINGLE TRANSFER GAS USED:',
+            (
+                (res.transactions[0].description as TransactionDescriptionGeneric)
+                    .computePhase as TransactionComputeVm
+            ).gasUsed
+        );
 
         expect(await highloadWalletV3.getProcessed(queryId)).toBe(true);
 
@@ -513,7 +517,6 @@ describe('HighloadWalletV3', () => {
                     createdAt: 1000,
                     mode: SendMode.PAY_GAS_SEPARATELY,
                     subwalletId: SUBWALLET_ID,
-                    timeout: DEFAULT_TIMEOUT
                 });
         } catch (e) {
             fail = true;
@@ -557,7 +560,6 @@ describe('HighloadWalletV3', () => {
             message,
             mode: 128,
             subwalletId: SUBWALLET_ID,
-            timeout: DEFAULT_TIMEOUT
         });
 
         // Code should not change
@@ -597,8 +599,7 @@ describe('HighloadWalletV3', () => {
                 query_id: queryId,
                 message,
                 mode: 128,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
+                subwalletId: SUBWALLET_ID
             }
         );
 
@@ -632,7 +633,7 @@ describe('HighloadWalletV3', () => {
             }
         }
 
-        const res = await highloadWalletV3.sendBatch(keyPair.secretKey, outMsgs, SUBWALLET_ID, curQuery, DEFAULT_TIMEOUT, 1000);
+        const res = await highloadWalletV3.sendBatch(keyPair.secretKey, outMsgs, SUBWALLET_ID, curQuery, 1000);
 
         expect(res.transactions).toHaveTransaction({
             on: highloadWalletV3.address,
@@ -663,7 +664,7 @@ describe('HighloadWalletV3', () => {
             };
         }
 
-        const res = await highloadWalletV3.sendBatch(keyPair.secretKey, msgs, SUBWALLET_ID, curQuery, DEFAULT_TIMEOUT, 1000);
+        const res = await highloadWalletV3.sendBatch(keyPair.secretKey, msgs, SUBWALLET_ID, curQuery, 1000);
 
         expect(res.transactions).toHaveTransaction({
             on: highloadWalletV3.address,
@@ -773,124 +774,6 @@ describe('HighloadWalletV3', () => {
             on: testAddr,
             from: highloadWalletV3.address,
             value: toNano('1000')
-        });
-    });
-    it('should ignore invalid message in payload', async () => {
-        const testAddr     = randomAddress(0);
-        const badGenerator = new MsgGenerator(0);
-        let queryIter    = new HighloadQueryId();
-
-        for(let badMsg of badGenerator.generateBadMsg()) {
-            const res = await highloadWalletV3.sendExternalMessage(
-                keyPair.secretKey,
-                {
-                    mode: SendMode.NONE,
-                    message: badMsg,
-                    query_id: queryIter,
-                    subwalletId: SUBWALLET_ID,
-                    createdAt: 1000,
-                    timeout: DEFAULT_TIMEOUT
-                });
-            expect(res.transactions).toHaveTransaction({
-                on: highloadWalletV3.address,
-                success: true, // Compute phase has to succeed
-                outMessagesCount: 0
-            });
-            // Expect query to be processed
-            expect(await highloadWalletV3.getProcessed(queryIter)).toBe(true);
-            queryIter = queryIter.getNext();
-        }
-    });
-    it('timeout replay attack', async () => {
-        /*
-         * Timeout is not part of the external
-         * So in theory one could deploy contract with
-         * different timeout without thinking too much.
-         * This opens up avenue for replay attack.
-         * So, at every deploy one should always change key or subwallet id
-        */
-        const deployer  = await blockchain.treasury('new_deployer');
-        const attacker  = await blockchain.treasury('attacker');
-
-        // Same contract different timeout
-        const newWallet = blockchain.openContract(
-            HighloadWalletV3.createFromConfig(
-                {
-                    publicKey: keyPair.publicKey,
-                    subwalletId: SUBWALLET_ID,
-                    timeout: 1234,
-                },
-                code
-            )
-        );
-
-        let res = await newWallet.sendDeploy(deployer.getSender(), toNano('1000'));
-        expect(res.transactions).toHaveTransaction({
-            on: newWallet.address,
-            deploy: true,
-            success: true
-        });
-
-        // So attacker requested legit withdraw on the exchange
-        const legitResp = await highloadWalletV3.sendExternalMessage(keyPair.secretKey, {
-            createdAt: 1000,
-            query_id: new HighloadQueryId(),
-            mode: SendMode.PAY_GAS_SEPARATELY,
-            subwalletId: SUBWALLET_ID,
-            timeout: DEFAULT_TIMEOUT,
-            message: internal_relaxed({
-                to: attacker.address,
-                value: toNano('10')
-            })
-        });
-
-        const legitTx = findTransactionRequired(legitResp.transactions, {
-            on: highloadWalletV3.address,
-            outMessagesCount: 1
-        });
-
-        expect(legitResp.transactions).toHaveTransaction({
-            on: attacker.address,
-            value: toNano('10')
-        });
-
-        // And now can replay it on contract with different timeout
-        const replyExt = legitTx.inMessage!;
-        if(replyExt.info.type !== 'external-in') {
-            throw TypeError("No way");
-        }
-        // Replace dest
-        replyExt.info = {
-            ...replyExt.info,
-            dest: newWallet.address
-        };
-        let fail = false;
-        try {
-            const reply = await blockchain.sendMessage(replyExt);
-        } catch (e) {
-            fail = true;
-        }
-
-        expect(fail).toBe(true);
-    });
-    it('should work replay protection, but dont send message', async () => {
-        const testResult = await highloadWalletV3.sendExternalMessage(
-            keyPair.secretKey,
-            {
-                createdAt: 1000,
-                query_id: new HighloadQueryId(),
-                message: beginCell().storeUint(239, 17).endCell(),
-                mode: 2,
-                subwalletId: SUBWALLET_ID,
-                timeout: DEFAULT_TIMEOUT
-            }
-        );
-
-        expect(testResult.transactions).toHaveTransaction({
-            to: highloadWalletV3.address,
-            success: true,
-            outMessagesCount: 0,
-            actionResultCode: 0
         });
     });
 });

@@ -89,12 +89,9 @@ const int BIT_NUMBER_SIZE = 10; ;; 2^10 = 1024
     int shift = msg_inner_slice~load_uint(KEY_SIZE);
     int bit_number = msg_inner_slice~load_uint(BIT_NUMBER_SIZE);
     int created_at = msg_inner_slice~load_uint(TIMESTAMP_SIZE);
-    int _timeout  = msg_inner_slice~load_uint(TIMEOUT_SIZE);
     msg_inner_slice.end_parse();
 
     throw_unless(error::invalid_subwallet_id, _subwallet_id == subwallet_id);
-    throw_unless(error::invalid_timeout, _timeout == timeout);
-
     throw_unless(error::invalid_created_at, created_at > now() - timeout);
     throw_unless(error::invalid_created_at, created_at <= now());
 
@@ -129,52 +126,9 @@ const int BIT_NUMBER_SIZE = 10; ;; 2^10 = 1024
         .store_uint(timeout, TIMEOUT_SIZE)
         .end_cell());
 
-
     commit();
 
-    ;; after commit, check the message to prevent an error in the action phase
-
-    slice message_slice = message_to_send.begin_parse();
-    {-
-       https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L123C1-L124C33
-       currencies$_ grams:Grams other:ExtraCurrencyCollection = CurrencyCollection;
-       extra_currencies$_ dict:(HashmapE 32 (VarUInteger 32)) = ExtraCurrencyCollection;
-
-       https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L135
-       int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
-       src:MsgAddress dest:MsgAddressInt
-       value:CurrencyCollection ihr_fee:Grams fwd_fee:Grams
-       created_lt:uint64 created_at:uint32 = CommonMsgInfoRelaxed;
-
-      https://github.com/ton-blockchain/ton/blob/8a9ff339927b22b72819c5125428b70c406da631/crypto/block/block.tlb#L155
-      message$_ {X:Type} info:CommonMsgInfoRelaxed
-      init:(Maybe (Either StateInit ^StateInit))
-      body:(Either X ^X) = MessageRelaxed X;
-    -}
-
-    throw_if(error::invalid_message_to_send, message_slice~load_uint(1)); ;; int_msg_info$0
-    int msg_flags = message_slice~load_uint(3); ;; ihr_disabled:Bool bounce:Bool bounced:Bool
-    if (is_bounced(msg_flags)) {
-        return ();
-    }
-    slice message_source_adrress = message_slice~load_msg_addr(); ;; src
-    throw_unless(error::invalid_message_to_send, is_address_none(message_source_adrress));
-    message_slice~load_msg_addr(); ;; dest
-    message_slice~load_coins(); ;; value.coins
-    message_slice = message_slice.skip_dict(); ;; value.other extra-currencies
-    message_slice~load_coins(); ;; ihr_fee
-    message_slice~load_coins(); ;; fwd_fee
-    message_slice~skip_bits(64 + 32); ;; created_lt:uint64 created_at:uint32
-    int maybe_state_init = message_slice~load_uint(1);
-    throw_if(error::invalid_message_to_send, maybe_state_init); ;; throw if state-init included (state-init not supported)
-    int either_body = message_slice~load_int(1);
-    if (either_body) {
-        message_slice~load_ref();
-        message_slice.end_parse();
-    }
-
     ;; send message with IGNORE_ERRORS flag to ignore errors in the action phase
-
     send_raw_message(message_to_send, send_mode | SEND_MODE_IGNORE_ERRORS);
 }
 
